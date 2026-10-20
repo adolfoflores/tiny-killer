@@ -1,0 +1,18 @@
+{
+  "name": "tiny-killer",
+  "private": true,
+  "description": "⚡️ Tiny Killer — the tiny version of Node Killer: a macOS menu bar app that finds your Node.js, Vite and Bun dev servers and kills them with a click.",
+  "author": "Adolfo Flores (https://github.com/adolfoflores)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/adolfoflores/tiny-killer.git"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "tinyjs dev",
+    "build": "tinyjs build --universal --dmg",
+    "test": "node --test test/",
+    "install:local": "sh scripts/install-local.sh"
+  }
+}

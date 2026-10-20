@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Settings</title>
+    <style>
+      /* Hallmark · genre: modern-minimal · surface: macOS settings window · theme: Quiet (system-native)
+       * accent: the user's system accent, through native controls · motion: none */
+      :root {
+        color-scheme: light dark;
+
+        --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+        --text-xs: 11px;
+        --text-sm: 12px;
+        --text-md: 13px;
+        --text-lg: 15px;
+
+        --space-3xs: 2px;
+        --space-2xs: 4px;
+        --space-xs: 8px;
+        --space-sm: 12px;
+        --space-md: 16px;
+        --space-lg: 20px;
+
+        --radius-group: 10px;
+        --radius-control: 6px;
+        --radius-focus: 4px;
+        --row-height: 40px;
+        --icon-size: 44px;
+        --chevrons: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 12'%3E%3Cpath d='M1.5 4.5 4 2l2.5 2.5M1.5 7.5 4 10l2.5-2.5' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+
+        --color-paper: oklch(96.5% 0 0);
+        --color-group: oklch(100% 0 0 / 0.75);
+        --color-rule: oklch(0% 0 0 / 0.08);
+        --color-ink: oklch(0% 0 0 / 0.85);
+        --color-ink-2: oklch(0% 0 0 / 0.5);
+        --color-hover: oklch(0% 0 0 / 0.06);
+        --color-pressed: oklch(0% 0 0 / 0.11);
+        --color-focus: -webkit-focus-ring-color;
+        --color-icon-shadow: oklch(0% 0 0 / 0.25);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --color-paper: oklch(23% 0 0);
+          --color-group: oklch(100% 0 0 / 0.05);
+          --color-rule: oklch(100% 0 0 / 0.09);
+          --color-ink: oklch(100% 0 0 / 0.88);
+          --color-ink-2: oklch(100% 0 0 / 0.55);
+          --color-hover: oklch(100% 0 0 / 0.08);
+          --color-pressed: oklch(100% 0 0 / 0.14);
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        overflow-x: clip;
+      }
+
+      body {
+        padding: var(--space-lg);
+        background: var(--color-paper);
+        color: var(--color-ink);
+        font: var(--text-md) / 1.35 var(--font-ui);
+        -webkit-font-smoothing: antialiased;
+        /* A settings window, not a document: labels aren't selectable text */
+        -webkit-user-select: none;
+        user-select: none;
+        cursor: default;
+      }
+
+      .app {
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+        margin-bottom: var(--space-lg);
+      }
+
+      .app img {
+        width: var(--icon-size);
+        height: var(--icon-size);
+        filter: drop-shadow(0 1px 2px var(--color-icon-shadow));
+      }
+
+      .app h1 {
+        margin: 0;
+        font-size: var(--text-lg);
+        font-weight: 600;
+      }
+
+      .app p {
+        margin: var(--space-3xs) 0 0;
+        color: var(--color-ink-2);
+        font-size: var(--text-xs);
+      }
+
+      section + section {
+        margin-top: var(--space-lg);
+      }
+
+      h2 {
+        margin: 0 0 var(--space-xs) var(--space-sm);
+        font-size: var(--text-md);
+        font-weight: 600;
+      }
+
+      .group {
+        border: 1px solid var(--color-rule);
+        border-radius: var(--radius-group);
+        background: var(--color-group);
+      }
+
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-md);
+        min-height: var(--row-height);
+        margin: 0 var(--space-sm);
+        padding: var(--space-xs) 0;
+      }
+
+      .row + .row {
+        border-top: 1px solid var(--color-rule);
+      }
+
+      .label {
+        min-width: 0;
+      }
+
+      /* The mark each kind of server carries in the menu */
+      .glyph {
+        display: inline-block;
+        width: 1.25em;
+        color: var(--color-ink-2);
+      }
+
+      .glyph ~ .note {
+        padding-left: 1.25em;
+      }
+
+      .note {
+        display: block;
+        margin-top: var(--space-3xs);
+        color: var(--color-ink-2);
+        font-size: var(--text-xs);
+      }
+
+      .note[hidden] {
+        display: none;
+      }
+
+      .row button {
+        flex: none;
+        font: inherit;
+      }
+
+      input[type="checkbox"] {
+        flex: none;
+        margin: 0;
+      }
+
+      /* A picker as macOS Settings draws one in a form: the value and a pair of
+       * chevrons, with a background only under the pointer. The menu it opens is native. */
+      .picker {
+        position: relative;
+        flex: none;
+        max-width: 60%;
+        margin-right: calc(var(--space-2xs) * -1);
+      }
+
+      .picker select {
+        -webkit-appearance: none;
+        appearance: none;
+        display: block;
+        max-width: 100%;
+        margin: 0;
+        padding: var(--space-2xs) calc(var(--space-sm) + var(--space-xs)) var(--space-2xs) var(--space-xs);
+        border: 0;
+        border-radius: var(--radius-control);
+        background: transparent;
+        color: var(--color-ink);
+        font: inherit;
+        text-align-last: right;
+        cursor: default;
+      }
+
+      .picker::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        right: var(--space-xs);
+        width: 8px;
+        height: 12px;
+        margin-top: -6px;
+        background: var(--color-ink-2);
+        -webkit-mask: var(--chevrons) center / contain no-repeat;
+        mask: var(--chevrons) center / contain no-repeat;
+        pointer-events: none;
+      }
+
+      .picker select:hover {
+        background: var(--color-hover);
+      }
+
+      .picker select:active {
+        background: var(--color-pressed);
+      }
+
+      .picker select:focus-visible {
+        outline: 3px solid var(--color-focus);
+        outline-offset: 0;
+      }
+
+      .picker select:disabled {
+        color: var(--color-ink-2);
+      }
+
+      footer {
+        margin-top: var(--space-lg);
+        text-align: center;
+        font-size: var(--text-xs);
+      }
+
+      footer a {
+        color: var(--color-ink-2);
+        text-decoration: none;
+        border-radius: var(--radius-focus);
+        cursor: pointer;
+      }
+
+      footer a:hover {
+        color: var(--color-ink);
+        text-decoration: underline;
+      }
+
+      footer a:focus-visible {
+        outline: 3px solid var(--color-focus);
+        outline-offset: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="app">
+      <img src="app-icon.png" alt="" />
+      <div>
+        <h1>Tiny Killer</h1>
+        <p id="version"></p>
+      </div>
+    </header>
+
+    <section aria-labelledby="general-title">
+      <h2 id="general-title">General</h2>
+      <div class="group">
+        <label class="row">
+          <span class="label">
+            Open at login
+            <span class="note" id="autoLaunchNote" hidden></span>
+          </span>
+          <input type="checkbox" switch id="autoLaunch" />
+        </label>
+        <div class="row">
+          <span class="label">
+            Updates
+            <span class="note" id="updateNote">Checked once a day.</span>
+          </span>
+          <button id="updateButton">Check Now</button>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="menu-bar-title">
+      <h2 id="menu-bar-title">Menu bar</h2>
+      <div class="group">
+        <label class="row">
+          <span class="label">Show</span>
+          <span class="picker"><select id="displayMode">
+            <option value="number">active: 4</option>
+            <option value="icon-plus-number">⚡️ 4</option>
+            <option value="number-plus-memory">⚡️ 4 · 1.4 GB</option>
+            <option value="number-plus-cpu">⚡️ 4 · 12%</option>
+            <option value="icon-only">Icon only</option>
+          </select></span>
+        </label>
+        <label class="row">
+          <span class="label">Refresh</span>
+          <span class="picker"><select id="refreshMs">
+            <option value="1000">Every second</option>
+            <option value="5000">Every 5 seconds</option>
+            <option value="10000">Every 10 seconds</option>
+            <option value="paused">Only by hand</option>
+          </select></span>
+        </label>
+      </div>
+    </section>
+
+    <section aria-labelledby="servers-title">
+      <h2 id="servers-title">Servers to list</h2>
+      <div class="group">
+        <label class="row">
+          <span class="label"><span class="glyph" aria-hidden="true">⬢</span>Node.js</span>
+          <input type="checkbox" switch data-type="node" />
+        </label>
+        <label class="row">
+          <span class="label">
+            <span class="glyph" aria-hidden="true">▲</span>Vite
+            <span class="note">Listed apart from the other Node.js servers.</span>
+          </span>
+          <input type="checkbox" switch data-type="vite" />
+        </label>
+        <label class="row">
+          <span class="label"><span class="glyph" aria-hidden="true">⬥</span>Bun</span>
+          <input type="checkbox" switch data-type="bun" />
+        </label>
+      </div>
+    </section>
+
+    <footer>
+      <a id="repoLink" href="https://github.com/adolfoflores/tiny-killer">github.com/adolfoflores/tiny-killer</a>
+    </footer>
+
+    <script src="preferences.js" type="module"></script>
+  </body>
+</html>

@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tiny Killer</title>
+    <style>
+      /* Hallmark · genre: modern-minimal · surface: macOS menu bar panel · theme: Quiet (system-native)
+       * layout: one flat list in aligned columns, grouped by project, no boxes
+       * material: native popover vibrancy behind a transparent page · accent: red for kill only
+       * motion: hover 140 ms, reduced-motion aware */
+      :root {
+        color-scheme: light dark;
+
+        --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+        --text-xs: 11px;
+        --text-sm: 12px;
+        --text-md: 13px;
+        --text-lg: 15px;
+
+        --space-3xs: 2px;
+        --space-2xs: 4px;
+        --space-xs: 6px;
+        --space-sm: 8px;
+        --space-md: 12px;
+        --space-lg: 16px;
+
+        --radius-row: 6px;
+        --radius-control: 6px;
+        --kill-size: 20px;
+        --list-max: 452px;
+        /* port · command · memory · uptime · kill */
+        --columns: 52px minmax(0, 1fr) 48px 50px var(--kill-size);
+
+        --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+        --dur-short: 140ms;
+        --dur-medium: 220ms;
+
+        --color-ink: oklch(0% 0 0 / 0.86);
+        --color-ink-2: oklch(0% 0 0 / 0.52);
+        --color-ink-3: oklch(0% 0 0 / 0.3);
+        --color-row-hover: oklch(0% 0 0 / 0.06);
+        --color-rule: oklch(0% 0 0 / 0.08);
+        --color-control-hover: oklch(0% 0 0 / 0.07);
+        --color-control-pressed: oklch(0% 0 0 / 0.12);
+        --color-halo: oklch(0% 0 0 / 0.05);
+        --color-kill: oklch(57% 0.21 27);
+        --color-kill-ink: oklch(100% 0 0);
+        --color-accent: oklch(58% 0.19 255);
+        --color-accent-ink: oklch(100% 0 0);
+        --color-focus: -webkit-focus-ring-color;
+      }
+
+      /* The user's accent color, where WebKit knows it */
+      @supports (color: -apple-system-control-accent) {
+        :root {
+          --color-accent: -apple-system-control-accent;
+        }
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --color-ink: oklch(100% 0 0 / 0.9);
+          --color-ink-2: oklch(100% 0 0 / 0.55);
+          --color-ink-3: oklch(100% 0 0 / 0.32);
+          --color-row-hover: oklch(100% 0 0 / 0.08);
+          --color-rule: oklch(100% 0 0 / 0.09);
+          --color-control-hover: oklch(100% 0 0 / 0.09);
+          --color-control-pressed: oklch(100% 0 0 / 0.15);
+          --color-halo: oklch(100% 0 0 / 0.06);
+          --color-kill: oklch(64% 0.2 25);
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        overflow-x: clip;
+        background: transparent; /* the window's vibrancy is the background */
+      }
+
+      body {
+        color: var(--color-ink);
+        font: var(--text-md) / 1.3 var(--font-ui);
+        -webkit-font-smoothing: antialiased;
+        -webkit-user-select: none;
+        user-select: none;
+        cursor: default;
+      }
+
+      .panel {
+        padding: var(--space-md) var(--space-sm) var(--space-sm);
+      }
+
+      .panel.arrive {
+        animation: arrive var(--dur-medium) var(--ease-out);
+      }
+
+      /* Only movement: the content never depends on an animation to become visible */
+      @keyframes arrive {
+        from {
+          transform: translateY(-4px);
+        }
+      }
+
+      button {
+        font: inherit;
+        color: inherit;
+        border: 0;
+        background: none;
+        padding: 0;
+        cursor: default;
+      }
+
+      button:focus-visible {
+        outline: 3px solid var(--color-focus);
+        outline-offset: 1px;
+      }
+
+      svg {
+        display: block;
+        width: 16px;
+        height: 16px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .num {
+        color: var(--color-ink-2);
+        font-size: var(--text-sm);
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      /* Head: who we are and how much is running, on one line */
+      .head {
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+        padding: 0 var(--space-2xs) var(--space-sm) var(--space-xs);
+      }
+
+      .head img {
+        width: 20px;
+        height: 20px;
+      }
+
+      .head h1 {
+        margin: 0;
+        font-size: var(--text-md);
+        font-weight: 600;
+      }
+
+      .head p {
+        flex: 1;
+        min-width: 0;
+        margin: 0;
+        overflow: hidden;
+        color: var(--color-ink-2);
+        font-size: var(--text-sm);
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .icon-button {
+        display: grid;
+        flex: none;
+        place-items: center;
+        width: 26px;
+        height: 26px;
+        border-radius: var(--radius-control);
+        color: var(--color-ink-2);
+        transition: background-color var(--dur-short) var(--ease-out), color var(--dur-short) var(--ease-out);
+      }
+
+      .icon-button:hover {
+        background: var(--color-control-hover);
+        color: var(--color-ink);
+      }
+
+      .icon-button:active {
+        background: var(--color-control-pressed);
+      }
+
+      .icon-button:disabled {
+        color: var(--color-ink-3);
+        background: none;
+      }
+
+      .icon-button.is-busy svg {
+        animation: spin 0.8s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* A newer version: one quiet line under the head */
+      .update {
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+        margin: 0 0 var(--space-sm);
+        padding: var(--space-xs) var(--space-xs) var(--space-xs) var(--space-sm);
+        border-radius: var(--radius-control);
+        background: var(--color-halo);
+        font-size: var(--text-sm);
+      }
+
+      .update[hidden] {
+        display: none;
+      }
+
+      .update-text {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .update-text.is-error {
+        color: var(--color-kill);
+      }
+
+      .update-notes {
+        color: var(--color-ink-2);
+        white-space: nowrap;
+      }
+
+      .update-notes:hover {
+        color: var(--color-ink);
+        text-decoration: underline;
+      }
+
+      .update-install {
+        flex: none;
+        padding: var(--space-3xs) var(--space-sm);
+        border-radius: 999px;
+        background: var(--color-accent);
+        color: var(--color-accent-ink);
+        font-weight: 600;
+      }
+
+      .update-install:disabled {
+        opacity: 0.6;
+      }
+
+      /* The columns, named once above the list */
+      .columns,
+      .server {
+        display: grid;
+        grid-template-columns: var(--columns);
+        align-items: center;
+        gap: var(--space-sm);
+        padding: 0 var(--space-xs);
+      }
+
+      .columns {
+        padding-top: var(--space-xs);
+        padding-bottom: var(--space-2xs);
+        border-top: 1px solid var(--color-rule);
+        color: var(--color-ink-3);
+        font-size: var(--text-xs);
+      }
+
+      .columns .num {
+        color: inherit;
+        font-size: inherit;
+      }
+
+      .columns[hidden] {
+        display: none;
+      }
+
+      /* The servers, grouped by project */
+      .list {
+        max-height: var(--list-max);
+        overflow-y: auto;
+      }
+
+      .group h2 {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-2xs);
+        margin: var(--space-sm) var(--space-xs) var(--space-3xs);
+        color: var(--color-ink-2);
+        font-size: var(--text-xs);
+        font-weight: 600;
+      }
+
+      .group h2 .project,
+      .group h2 .worktree {
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .group h2 .worktree {
+        color: var(--color-ink-3);
+        font-weight: 500;
+      }
+
+      .group h2 .count {
+        flex: none;
+        margin-left: auto;
+        color: var(--color-ink-3);
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .group ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .server {
+        min-height: 28px;
+        border-radius: var(--radius-row);
+        transition: background-color var(--dur-short) var(--ease-out), opacity var(--dur-medium) var(--ease-out);
+      }
+
+      .server:hover {
+        background: var(--color-row-hover);
+      }
+
+      .port {
+        overflow: hidden;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .command {
+        overflow: hidden;
+        color: var(--color-ink-2);
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .error {
+        grid-column: 2 / -1;
+        margin: calc(var(--space-2xs) * -1) 0 var(--space-2xs);
+        color: var(--color-kill);
+        font-size: var(--text-xs);
+      }
+
+      .error:empty {
+        display: none;
+      }
+
+      /* Kill: always there, quiet until pointed at */
+      .kill {
+        display: grid;
+        place-items: center;
+        justify-self: end;
+        width: var(--kill-size);
+        height: var(--kill-size);
+        border-radius: 50%;
+        color: var(--color-ink-3);
+        transition: background-color var(--dur-short) var(--ease-out), color var(--dur-short) var(--ease-out);
+      }
+
+      .kill svg {
+        width: 9px;
+        height: 9px;
+        stroke-width: 2.2;
+      }
+
+      .server:hover .kill {
+        color: var(--color-ink-2);
+      }
+
+      .kill:hover,
+      .server:hover .kill:hover {
+        background: var(--color-kill);
+        color: var(--color-kill-ink);
+      }
+
+      .kill:active {
+        transform: scale(0.92);
+      }
+
+      .kill .spinner,
+      .server.is-stopping .kill svg {
+        display: none;
+      }
+
+      .server.is-stopping {
+        opacity: 0.5;
+      }
+
+      .server.is-stopping .kill {
+        background: none;
+        color: var(--color-ink-2);
+      }
+
+      .server.is-stopping .kill .spinner {
+        display: block;
+      }
+
+      .spinner {
+        width: 11px;
+        height: 11px;
+        border: 2px solid currentColor;
+        border-right-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+      }
+
+      /* Nothing running, or not looked yet */
+      .quiet {
+        display: grid;
+        justify-items: center;
+        gap: var(--space-2xs);
+        padding: var(--space-lg) 0 calc(var(--space-lg) + var(--space-sm));
+        border-top: 1px solid var(--color-rule);
+        text-align: center;
+      }
+
+      .quiet .halo {
+        display: grid;
+        place-items: center;
+        width: 44px;
+        height: 44px;
+        margin-bottom: var(--space-xs);
+        border-radius: 50%;
+        background: var(--color-halo);
+        color: var(--color-ink-3);
+      }
+
+      .quiet .halo svg {
+        width: 20px;
+        height: 20px;
+        fill: currentColor;
+        stroke: none;
+      }
+
+      .quiet strong {
+        font-size: var(--text-lg);
+        font-weight: 600;
+      }
+
+      .quiet .hint {
+        color: var(--color-ink-2);
+        font-size: var(--text-sm);
+      }
+
+      /* Foot: the destructive action apart from the quiet ones */
+      .foot {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3xs);
+        margin-top: var(--space-sm);
+        padding: var(--space-xs) var(--space-3xs) 0;
+        border-top: 1px solid var(--color-rule);
+      }
+
+      .kill-all {
+        margin-right: auto;
+        padding: var(--space-xs) var(--space-xs);
+        border-radius: var(--radius-control);
+        color: var(--color-kill);
+        font-weight: 600;
+        transition: background-color var(--dur-short) var(--ease-out), color var(--dur-short) var(--ease-out);
+      }
+
+      .kill-all:hover {
+        background: color-mix(in oklch, var(--color-kill) 12%, transparent);
+      }
+
+      .kill-all.is-armed {
+        background: var(--color-kill);
+        color: var(--color-kill-ink);
+      }
+
+      .kill-all:disabled {
+        color: var(--color-ink-3);
+        background: none;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .panel.arrive {
+          animation: none;
+        }
+
+        .icon-button.is-busy svg,
+        .spinner {
+          animation-duration: 2.4s;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="panel arrive">
+      <header class="head">
+        <img src="app-icon.png" alt="" />
+        <h1>Tiny Killer</h1>
+        <p id="summary">Scanning…</p>
+        <button class="icon-button" id="refresh" aria-label="Refresh" title="Refresh">
+          <svg viewBox="0 0 16 16"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9" /><path d="M13.5 2.5v3h-3" /></svg>
+        </button>
+      </header>
+
+      <div class="update" id="update" role="status" hidden>
+        <span class="update-text" id="updateText"></span>
+        <button class="update-notes" id="updateNotes">What's new</button>
+        <button class="update-install" id="updateInstall">Update</button>
+      </div>
+
+      <div class="columns" id="columns" aria-hidden="true" hidden>
+        <span>Port</span><span>Command</span><span class="num">Memory</span><span class="num">Up</span><span></span>
+      </div>
+      <div class="list" id="list"></div>
+
+      <footer class="foot">
+        <button class="kill-all" id="killAll">Kill all</button>
+        <button class="icon-button" id="settings" aria-label="Settings" title="Settings">
+          <svg viewBox="0 0 16 16">
+            <path d="M2.5 4.5h6M12.5 4.5h1M2.5 11.5h1M7.5 11.5h6" />
+            <circle cx="10.5" cy="4.5" r="1.75" />
+            <circle cx="5.5" cy="11.5" r="1.75" />
+          </svg>
+        </button>
+        <button class="icon-button" id="quit" aria-label="Quit Tiny Killer" title="Quit Tiny Killer">
+          <svg viewBox="0 0 16 16"><path d="M8 2.5v5" /><path d="M4.6 4.6a4.8 4.8 0 1 0 6.8 0" /></svg>
+        </button>
+      </footer>
+    </main>
+
+    <template id="serverRow">
+      <li class="server">
+        <span class="port"></span>
+        <span class="command"></span>
+        <span class="num memory"></span>
+        <span class="num uptime"></span>
+        <button class="kill">
+          <svg viewBox="0 0 16 16"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7" /></svg>
+          <span class="spinner" aria-hidden="true"></span>
+        </button>
+        <div class="error" role="status"></div>
+      </li>
+    </template>
+
+    <template id="quietState">
+      <div class="quiet">
+        <span class="halo" aria-hidden="true">
+          <svg viewBox="0 0 100 100"><path d="M64 0 16 56h28L34 100l50-60H56z" /></svg>
+        </span>
+        <strong></strong>
+        <span class="hint"></span>
+      </div>
+    </template>
+
+    <script src="panel.js" type="module"></script>
+  </body>
+</html>

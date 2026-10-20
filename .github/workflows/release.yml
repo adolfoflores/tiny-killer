@@ -1,0 +1,79 @@
+name: Release
+
+# Builds the macOS app (Intel + Apple Silicon) and attaches it to a draft GitHub release.
+# Trigger it by pushing a tag that matches "version" in tinyjs.json:
+#   git tag v1.0.0
+#   git push --tags
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    env:
+      # The tinyjs release the app is built with; raise minTinyjsVersion in tinyjs.json with it
+      TINYJS_VERSION: v0.57.7
+    defaults:
+      run:
+        # bash -eo pipefail: a failed download in `curl | sh` fails the step
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Check tag matches tinyjs.json version
+        run: |
+          expected="v$(node -p "require('./tinyjs.json').version")"
+          if [ "$GITHUB_REF_NAME" != "$expected" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match tinyjs.json version ($expected)"
+            exit 1
+          fi
+
+      - run: npm test
+
+      - name: Install tinyjs
+        run: |
+          curl -fsSL https://tinyjs.app/install | TINYJS_NO_MODIFY_PATH=1 sh
+          echo "$HOME/.tinyjs" >> "$GITHUB_PATH"
+
+      # No Developer ID certificate: tinyjs signs the app ad-hoc, so macOS asks for
+      # confirmation on first launch instead of calling a downloaded copy damaged.
+      # publish builds the app and the .dmg, then packs the zip and manifest.json
+      # that installed copies read from the latest release to update themselves.
+      - name: Build
+        run: tinyjs publish --universal --dmg
+
+      - name: Check the update manifest
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          zip_url="https://github.com/adolfoflores/tiny-killer/releases/latest/download/tiny-killer-$version.zip"
+          node -e '
+            const m = require("./dist/publish/manifest.json");
+            const [version, url] = process.argv.slice(1);
+            if (m.version !== version || m.url !== url || !m.sha256) {
+              console.error("::error::unexpected manifest", JSON.stringify(m));
+              process.exit(1);
+            }
+          ' "$version" "$zip_url"
+
+      # A draft reaches no one: publishing it makes it the latest release, which is
+      # where installed copies look for updates
+      - name: Create draft release
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --draft \
+            --verify-tag \
+            --title "Tiny Killer $GITHUB_REF_NAME" \
+            --generate-notes \
+            dist/*.dmg dist/publish/*.zip dist/publish/manifest.json
+        env:
+          GH_TOKEN: ${{ github.token }}

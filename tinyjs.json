@@ -1,0 +1,19 @@
+{
+  "$schema": "https://tinyjs.app/schema/tinyjs.schema.json",
+  "name": "tiny-killer",
+  "title": "Tiny Killer",
+  "id": "io.github.adolfoflores.tinykiller",
+  "version": "1.0.0",
+  "minTinyjsVersion": "0.57.7",
+  "activation": "accessory",
+  "size": "360x469",
+  "chrome": { "frame": false, "windowControls": false, "vibrancy": "popover" },
+  "contextMenu": false,
+  "offscreenRescue": false,
+  "api": { "origins": { "file://*": "all" } },
+  "update": {
+    "url": "https://github.com/adolfoflores/tiny-killer/releases/latest/download/manifest.json",
+    "auto": "daily"
+  },
+  "attribution": "github.com/adolfoflores/tiny-killer"
+}
