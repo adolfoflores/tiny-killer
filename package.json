@@ -12,7 +12,7 @@
   "scripts": {
     "dev": "tinyjs dev",
     "build": "tinyjs build --universal --dmg",
-    "test": "node --test test/",
+    "test": "node --test \"test/*.test.js\"",
     "install:local": "sh scripts/install-local.sh"
   }
 }
