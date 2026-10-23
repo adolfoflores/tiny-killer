@@ -1,6 +1,6 @@
 # ⚡️ Tiny Killer
 
-[![tinyjs](https://img.shields.io/badge/tinyjs-%E2%89%A50.57.7-orange)](https://tinyjs.app)
+[![tinyjs](https://img.shields.io/badge/tinyjs-%E2%89%A50.65.0-orange)](https://tinyjs.app)
 [![macOS](https://img.shields.io/badge/platform-macOS%2015%2B-lightgrey?logo=apple)](https://developer.apple.com/macos/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
 

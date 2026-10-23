@@ -18,7 +18,7 @@ jobs:
     runs-on: macos-latest
     env:
       # The tinyjs release the app is built with; raise minTinyjsVersion in tinyjs.json with it
-      TINYJS_VERSION: v0.57.7
+      TINYJS_VERSION: v0.65.0
     defaults:
       run:
         # bash -eo pipefail: a failed download in `curl | sh` fails the step
