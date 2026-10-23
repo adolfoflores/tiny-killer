@@ -13,7 +13,11 @@
   "api": { "origins": { "file://*": "all" } },
   "update": {
     "url": "https://github.com/adolfoflores/tiny-killer/releases/latest/download/manifest.json",
-    "auto": "daily"
+    "auto": "daily",
+    "publicKey": [
+      "EbdKB6wFlwC28YmqU1PRYkJhlUHIhtGvzTFcHDfvI2o=",
+      "CHP9u7+8uk4KNXj/7qmqzI/aJPEWalTHVxtbiOmGaP4="
+    ]
   },
   "attribution": "github.com/adolfoflores/tiny-killer"
 }

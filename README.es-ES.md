@@ -34,7 +34,7 @@ Node Killer está hecho con Electron, que mete un navegador web entero dentro de
 
 ## 📥 Descarga
 
-Descarga el `.dmg` desde la [última versión](https://github.com/adolfoflores/tiny-killer/releases/latest), ábrelo y arrastra Tiny Killer a Aplicaciones. Funciona en Macs Intel y Apple Silicon con macOS 15 o posterior.
+Descarga el `.dmg` desde la [última versión](https://github.com/adolfoflores/tiny-killer/releases/latest), ábrelo y arrastra Tiny Killer a Aplicaciones. Funciona en Macs Intel y Apple Silicon con macOS 15 o posterior, se actualiza sola a diario, e instala solo actualizaciones firmadas con la clave del proyecto.
 
 > La app todavía no está notarizada, así que macOS bloquea el primer arranque: abre **Configuración del Sistema → Privacidad y seguridad** y pulsa **Abrir igualmente**.
 
@@ -54,7 +54,7 @@ npm run install:local  # compilarla e instalarla en /Applications
 npm test
 ```
 
-Para publicar una versión, cambia `version` en `tinyjs.json` y sube un tag igual (`v1.0.0`): GitHub Actions crea un borrador de release con el `.dmg` y los archivos de actualización. Al publicar el borrador, las copias instaladas ofrecen la actualización.
+Para publicar una versión, cambia `version` en `tinyjs.json` y sube un tag igual (`v1.0.0`): GitHub Actions crea un borrador de release con el `.dmg` y los archivos de actualización, firmando el manifest con el secreto `TINYJS_UPDATE_PRIVATE_KEY`. Al publicar el borrador, las copias instaladas ofrecen la actualización.
 
 ## 🤝 Contribuir
 Los pull requests y comentarios son bienvenidos. Ejecuta `npm test` antes de abrir uno.

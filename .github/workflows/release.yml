@@ -45,24 +45,92 @@ jobs:
           curl -fsSL https://tinyjs.app/install | TINYJS_NO_MODIFY_PATH=1 sh
           echo "$HOME/.tinyjs" >> "$GITHUB_PATH"
 
+      # tinyjs signs the update manifest with the Ed25519 key this file points at, and
+      # bakes update.publicKey from tinyjs.json into the app, so an installed copy
+      # installs nothing the project did not sign. Both halves have to be there:
+      # publish fails if one is configured without the other.
+      #
+      # update.publicKey is a list: the key this secret carries, and a spare kept
+      # offline for a rollover. Lose every private half and every installed copy is
+      # stranded - they refuse every later manifest and each user reinstalls by hand.
+      # A malformed entry does the same, so the check below decodes every one of them.
+      #
+      # A new pair, and the secret that carries it:
+      #   openssl genpkey -algorithm ed25519 -outform DER -out update-key.der
+      #   openssl pkey -in update-key.der -inform DER -pubout -outform DER | tail -c 32 | base64
+      #   base64 < update-key.der | gh secret set TINYJS_UPDATE_PRIVATE_KEY
+      # The second line prints what goes in update.publicKey. Keep update-key.der out
+      # of the checkout and backed up away from this machine.
+      - name: Write the update signing key
+        env:
+          TINYJS_UPDATE_PRIVATE_KEY: ${{ secrets.TINYJS_UPDATE_PRIVATE_KEY }}
+        run: |
+          if [ -z "$TINYJS_UPDATE_PRIVATE_KEY" ]; then
+            echo "::error::secret TINYJS_UPDATE_PRIVATE_KEY is missing. It holds the base64 of the PKCS8 DER private half of a key listed in update.publicKey: base64 < update-key.der | gh secret set TINYJS_UPDATE_PRIVATE_KEY"
+            exit 1
+          fi
+          key_file="$RUNNER_TEMP/tinyjs-update-key.der"
+          # The secret holds the base64 of the PKCS8 DER private key
+          printf '%s' "$TINYJS_UPDATE_PRIVATE_KEY" | tr -d '[:space:]' | base64 -d > "$key_file"
+          chmod 600 "$key_file"
+          echo "TINYJS_UPDATE_PRIVATE_KEY_FILE=$key_file" >> "$GITHUB_ENV"
+
       # No Developer ID certificate: tinyjs signs the app ad-hoc, so macOS asks for
       # confirmation on first launch instead of calling a downloaded copy damaged.
       # publish builds the app and the .dmg, then packs the zip and manifest.json
       # that installed copies read from the latest release to update themselves.
+      # The manifest keeps its plain fields next to the signature on purpose: copies
+      # built before the key was pinned still read them (no --signed-only).
       - name: Build
         run: tinyjs publish --universal --dmg
+
+      - name: Remove the update signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/tinyjs-update-key.der"
 
       - name: Check the update manifest
         run: |
           version="${GITHUB_REF_NAME#v}"
           zip_url="https://github.com/adolfoflores/tiny-killer/releases/latest/download/tiny-killer-$version.zip"
-          node -e '
-            const m = require("./dist/publish/manifest.json");
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
             const [version, url] = process.argv.slice(1);
-            if (m.version !== version || m.url !== url || !m.sha256) {
-              console.error("::error::unexpected manifest", JSON.stringify(m));
+            const doc = JSON.parse(readFileSync("dist/publish/manifest.json", "utf8"));
+            const pinned = JSON.parse(readFileSync("tinyjs.json", "utf8")).update.publicKey;
+            const pins = Array.isArray(pinned) ? pinned : [pinned];
+            const bad = (why) => {
+              console.error("::error::" + why + ": " + JSON.stringify(doc));
               process.exit(1);
+            };
+            // The plain fields, which copies without the pinned key go on reading
+            if (doc.version !== version || doc.url !== url || !doc.sha256) bad("unexpected manifest");
+            // The envelope tinyjs signs: exactly these four keys, or the app refuses it
+            const envelope = doc.signed;
+            if (!envelope || typeof envelope !== "object" ||
+                Object.keys(envelope).sort().join(",") !== "algorithm,format,payload,signature" ||
+                envelope.format !== "tinyjs-update-v1" || envelope.algorithm !== "Ed25519")
+              bad("manifest carries no tinyjs-update-v1 Ed25519 envelope");
+            // Every pin has to decode: the app fails closed on a malformed one, so a typo
+            // here would stop every installed copy updating, signature or not
+            const raws = pins.map((pin) => {
+              const raw = Buffer.from(pin, "base64");
+              if (raw.length !== 32 || raw.toString("base64") !== pin) bad("invalid update.publicKey entry " + pin);
+              return raw;
+            });
+            // Verified the way the app verifies it: Ed25519 over the prefixed payload,
+            // and a signature from any pinned key passes
+            const message = Buffer.concat([Buffer.from("tinyjs-update-v1\n"), Buffer.from(envelope.payload)]);
+            const sig = Buffer.from(envelope.signature, "base64");
+            let signedByAPin = false;
+            for (const raw of raws) {
+              const key = await crypto.subtle.importKey("raw", raw, "Ed25519", false, ["verify"]);
+              if (await crypto.subtle.verify("Ed25519", key, sig, message)) { signedByAPin = true; break; }
             }
+            if (!signedByAPin) bad("signature does not verify against any update.publicKey in tinyjs.json");
+            // What was signed has to say what the plain fields say
+            const payload = JSON.parse(envelope.payload);
+            if (payload.version !== doc.version || payload.url !== doc.url || payload.sha256 !== doc.sha256)
+              bad("the signed payload disagrees with the plain fields");
           ' "$version" "$zip_url"
 
       # A draft reaches no one: publishing it makes it the latest release, which is
