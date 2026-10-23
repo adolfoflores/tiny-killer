@@ -3,7 +3,7 @@
   "name": "tiny-killer",
   "title": "Tiny Killer",
   "id": "io.github.adolfoflores.tinykiller",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "minTinyjsVersion": "0.65.0",
   "activation": "accessory",
   "size": "360x469",
